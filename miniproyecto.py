@@ -5,6 +5,7 @@ import datetime
 from pymongo.mongo_client import MongoClient
 
 uri = "mongodb+srv://Finchi:Juanjose.123@cluster0.pndlt5o.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0"
+FileLog = "log.txt"
 
 
 # Definición de roles disponibles y variables iniciales
@@ -19,6 +20,8 @@ db = client['Procesos']
 inventario = db['inventario']
 ventas = db['ventas']
 usuarios = db['usuarios']
+
+
 
 def verAPUntos():
     global usuarios
@@ -157,6 +160,7 @@ def realizarVenta():
                                 ventas.insert_one(newVenta)
                                 print('!!Compra realizada exitosamente!!')
                                 salidaMenu2 = int(input('Presiona 0 para salir o cualquier otro numero para seguir registrando ventas\n'))
+                                log(f'{userID["_id"]} realizo una venta a {newVenta["comprador"]} con APUntos por un total de {total}$ el {datetime.datetime.now()}\n')
                                 salidaMenu = 0
                                 
                                 
@@ -209,6 +213,7 @@ def realizarVenta():
                                 
                             ventas.insert_one(newVenta)
                             print('!!Compra realizada exitosamente!!')
+                            log(f'{userID["_id"]} realizo una venta a {newVenta["comprador"]} con efectivo por un total de {total}$ el {datetime.datetime.now()}\n')
                             salidaMenu2 = int(input('Presiona 0 para salir o cualquier otro numero para seguir registrando ventas\n'))
                             salidaMenu = 0
 
@@ -248,6 +253,7 @@ def verUsuarios():
         else:
             print('No hay usuarios registrados')
 
+        log(f'{userID["_id"]} vió los usuarios el {datetime.datetime.now()}\n')
         accion = int(input('Presiona 0 para salir\n'))
 
 # Función para actualizar el inventario
@@ -256,8 +262,7 @@ def actualizarInventario():
     # Guardado de cambios en el archivo JSON correspondiente
     global inventario
     salidaMenu = None
-
-    while (salidaMenu != 0):
+    while (salidaMenu != "0"):
 
         time.sleep(tiempo)
         os.system('cls' if os.name == 'nt' else 'clear')
@@ -273,13 +278,14 @@ def actualizarInventario():
             newItemNum = int(input('Cantidad : '))
             newPrice = int(input('Precio unitario: '))
             inventario.insert_one({'_id': newItemName, 'cantidad': newItemNum, 'precio' : newPrice})
+            log(f'{userID["_id"]} agrego {newItemNum} del nuevo producto {newItemName} con precio: {newPrice} el {datetime.datetime.now()}')
             print('!!Producto agregado exitosamente!!')
             
         elif (accion == 2):
 
             if (inventario.count_documents({}) == 0):
                 print("El inventario esta vacio")
-                salidaMenu = 0
+                salidaMenu = "0"
 
             else:
                 time.sleep(tiempo)
@@ -303,16 +309,20 @@ def actualizarInventario():
                         inventario.delete_one({'_id': item})
                         oldItem['_id'] = updateName
                         inventario.insert_one(oldItem)
+                        
+                        log(f'{userID["_id"]} cambio el nombre de {item} a {updateName} el {datetime.datetime.now()}\n')
 
                     elif (actualizarMenu == 2):
                         print('Cantidad actual: ', oldItem['cantidad'])
                         updateCantidad = int(input("Nueva cantidad: "))
                         inventario.update_one({'_id': item}, {'$set': {'cantidad': updateCantidad}})
+                        log(f'{userID["_id"]} cambio la cantidad de {item} de {oldItem["cantidad"]} a {updateCantidad} el {datetime.datetime.now()}\n')
 
                     elif (actualizarMenu == 3):
                         print('Precio actual: ', oldItem['precio'])
                         updatePrice = input("Nuevo precio: ")
                         inventario.update_one({'_id': item}, {'$set': {'precio': updatePrice}})
+                        log(f'{userID["_id"]} cambio el precio de {item} de {oldItem["precio"]} a {updatePrice} el {datetime.datetime.now()}\n')
 
                     elif (actualizarMenu == 4):
                         print('Nombre actual: ', item)
@@ -323,15 +333,15 @@ def actualizarInventario():
                         newPrice = int(input('Precio unitario: '))
                         inventario.delete_one({'_id': item})
                         inventario.insert_one({'_id': updateName, 'cantidad': newItemNum, 'precio' : newPrice})
-
+                        log(f'{userID["_id"]} cambio el nombre de {item} a {updateName} la cantidad de {oldItem["cantidad"]} a {newItemNum} y el precio de {oldItem["precio"]} a {newPrice} el {datetime.datetime.now()}\n')
                     else:
-                        salidaMenu = 0
+                        salidaMenu = "0"
 
                     if (actualizarMenu != 0):
                         print('!!Producto actualizado exitosamente!!')
 
                 else:
-                    salidaMenu = 0
+                    salidaMenu = "0"
 
         elif (accion == 3):
             time.sleep(tiempo)
@@ -348,40 +358,81 @@ def actualizarInventario():
 
             if (delItem != None and item != "0"):
                 inventario.delete_one({'_id': item})
+                log(f'{userID["_id"]} elimino el producto {item} el {datetime.datetime.now()}\n')
                 print('!!Producto eliminado exitosamente!!')
 
         elif (accion == 0):
             salidaMenu = 0
 
-        if (salidaMenu != 0):
+        if (salidaMenu != "0"):
             print('Presiona 0 para salir')
-            salidaMenu = int(input())    
+            salidaMenu = input()  
         
 # Función para ver el inventario
 def verInventario():
     # Carga y muestra del inventario desde el archivo JSON
     global inventario
     accion = None
+    filtro = None
+    
+    time.sleep(tiempo)
+    os.system('cls' if os.name == 'nt' else 'clear')
+    print("1) ver todo el inventario\n2) ver productos con pocas unidades\n0) Salir")
+    filtro = int(input("Que quieres hacer: "))
+    while (filtro != 1 and filtro != 2 and filtro != 0):
+        print("opcion invalida")
+        filtro = int(input("Que quieres hacer: "))
+    
+    if (filtro == 1):
+        while (accion != 0):
 
-    while (accion != 0):
+            time.sleep(tiempo)
+            os.system('cls' if os.name == 'nt' else 'clear')
+            time.sleep(tiempo)
+            os.system('cls' if os.name == 'nt' else 'clear')
 
-        time.sleep(tiempo)
-        os.system('cls' if os.name == 'nt' else 'clear')
-        time.sleep(tiempo)
-        os.system('cls' if os.name == 'nt' else 'clear')
+            if (inventario.count_documents({}) > 0):
 
-        if (inventario.count_documents({}) > 0):
+                print('| {:<20} | {:<10} | {:<10} |'.format('Producto', 'Cantidad', 'Precio'))
+                print('-' * (20 + 10 + 10 + 10))
 
-            print('| {:<20} | {:<10} | {:<10} |'.format('Producto', 'Cantidad', 'Precio'))
-            print('-' * (20 + 10 + 10 + 10))
+                for producto in inventario.find():
+                    print('| {:<20} | {:<10} | {:<10} |'.format(producto['_id'], producto['cantidad'], producto['precio']))
 
-            for producto in inventario.find():
-                print('| {:<20} | {:<10} | {:<10} |'.format(producto['_id'], producto['cantidad'], producto['precio']))
+            else:
+                print('El inventario esta vacio')
+            
+            
+            accion = int(input('Presiona 0 para salir\n'))
+    elif (filtro == 2):
+        while (accion != 0):
 
-        else:
-            print('El inventario esta vacio')
+            time.sleep(tiempo)
+            os.system('cls' if os.name == 'nt' else 'clear')
+            time.sleep(tiempo)
+            os.system('cls' if os.name == 'nt' else 'clear')
 
-        accion = int(input('Presiona 0 para salir\n'))
+            if (inventario.count_documents({}) > 0):
+                cont = 0
+                print('| {:<20} | {:<10} | {:<10} |'.format('Producto', 'Cantidad', 'Precio'))
+                print('-' * (20 + 10 + 10 + 10))
+
+                for producto in inventario.find():
+                    if producto['cantidad'] <= 2:
+                        cont += 1
+                        print('| {:<20} | {:<10} | {:<10} |'.format(producto['_id'], producto['cantidad'], producto['precio']))
+                if cont == 0:
+                    print("!!No hay productos con pocas unidades!!")
+
+            else:
+                print('El inventario esta vacio')
+            
+            
+            accion = int(input('Presiona 0 para salir\n'))
+    else:
+        accion = 0
+    
+    log(f'{userID["_id"]} vió el inventario el {datetime.datetime.now()}\n')
 
 # Función para crear un nuevo usuario
 def crearUsuario():
@@ -389,31 +440,32 @@ def crearUsuario():
     # Guardado de datos actualizados en archivo JSON
     global usuarios
     salidaMenu = None
-
-    while (salidaMenu != 0):
-        time.sleep(tiempo)
-        os.system('cls' if os.name == 'nt' else 'clear')
-        print('Crear usuario:')
-        newIdUser = input('Nuevo Id de usuario: ')
-        newUserName = input('Nuevo nombre de usuario: ')
-        newUserPassword = input('Nueva password: ')
-        newRol = input('Nuevo Rol: ')
-
-        while (newRol not in roles or newIdUser in usuarios):
+    while (salidaMenu != "0"):
+        while (salidaMenu != "0"):
             time.sleep(tiempo)
             os.system('cls' if os.name == 'nt' else 'clear')
-            print('**!!Datos Invalidos!!**')
-            print('Crear Usuario:')
+            print('Crear usuario:')
             newIdUser = input('Nuevo Id de usuario: ')
             newUserName = input('Nuevo nombre de usuario: ')
-            newUserPassword = input('Nuevo password: ')
+            newUserPassword = input('Nueva password: ')
             newRol = input('Nuevo Rol: ')
 
-        usuarios.insert_one({'_id': newIdUser,'name': newUserName, 'password' : newUserPassword, 'rol' : newRol, 'APUntos': 0})
+            while (newRol not in roles or usuarios.find_one({'_id': newIdUser}) != None):
+                time.sleep(tiempo)
+                os.system('cls' if os.name == 'nt' else 'clear')
+                print('**!!Datos Invalidos!!**')
+                print('Crear Usuario:')
+                newIdUser = input('Nuevo Id de usuario: ')
+                newUserName = input('Nuevo nombre de usuario: ')
+                newUserPassword = input('Nuevo password: ')
+                newRol = input('Nuevo Rol: ')
 
-        print('Usuario ', newRol, ' creado exitosamente!!! :)')
-        
-        salidaMenu = int(input('Presiona 0 para salir\n'))
+            usuarios.insert_one({'_id': newIdUser,'name': newUserName, 'password' : newUserPassword, 'rol' : newRol, 'APUntos': 0, 'logged': False})
+
+            print('Usuario ', newRol, ' creado exitosamente!!! :)')
+            log(f'{userID["_id"]} creo el usuario con id: {newIdUser}, con rol: {newRol} y contraseña: {newUserPassword} el {datetime.datetime.now()}\n')
+
+            salidaMenu = input('Presione Enter para seguircreando usuarios o escriba 0 y pulse Enter para salir\n')
     
 # Función para iniciar sesión
 def login():
@@ -445,6 +497,11 @@ def login():
 
     userID = User
     print(f'¡Bienvenido {User["name"]}!')
+    log(f'{User["_id"]} inicio sesion el {datetime.datetime.now()}\n')
+    
+def log(txt):
+    with open(FileLog, "a") as archivo:
+        archivo.write(txt)
 
 def comprasDiarias():
     global usuarios, userID
@@ -493,6 +550,7 @@ def comprasDiarias():
 
     print('Total del día: ', total)
     print('Presiona 0 para salir')
+    log(f'{userID["_id"]} vió las el reporte de ventas el {datetime.datetime.now()}\n')
     accion = input()
     time.sleep(tiempo)
     os.system('cls' if os.name == 'nt' else 'clear')
@@ -532,6 +590,7 @@ def menu():
 
         else:
             usuarios.update_one(userID, {'$set': {'logged': False}})
+            log(f'{userID["_id"]} vió las el reporte de ventas el {datetime.datetime.now()}\n')
             return 0
         
     elif (userID['rol'] == 'cliente'):
@@ -547,6 +606,7 @@ def menu():
 
         else:
             usuarios.update_one(userID, {'$set': {'logged': False}})
+            log(f'{userID["_id"]} vió las el reporte de ventas el {datetime.datetime.now()}\n')
             return 0
         
     elif (userID['rol'] == 'trabajador'):
@@ -565,6 +625,7 @@ def menu():
 
         else:
             usuarios.update_one(userID, {'$set': {'logged': False}})
+            log(f'{userID["_id"]} vió las el reporte de ventas el {datetime.datetime.now()}\n')
             return 0
 
 # Bucle principal del programa, maneja el login y la navegación por el menú principal
@@ -576,6 +637,8 @@ while (True):
         time.sleep(tiempo)
         os.system('cls' if os.name == 'nt' else 'clear')
         salidaMenu = menu()
+    if (userID != None):
+        usuarios.update_one({'_id': userID['_id']}, {'$set': {'logged': False}})
 
 '''
     ___    ____  __  __

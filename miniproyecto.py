@@ -9,7 +9,7 @@ FileLog = "log.txt"
 
 
 # Definición de roles disponibles y variables iniciales
-roles = {'cliente', 'trabajador', 'administrador', 'especial'}
+roles = {'cliente', 'trabajador', 'administrador', 'proveedor'}
 tiempo = 1
 userID = None
 # Nombres de archivos para almacenar datos de usuarios, inventario y ventas
@@ -20,6 +20,7 @@ db = client['Procesos']
 inventario = db['inventario']
 ventas = db['ventas']
 usuarios = db['usuarios']
+proveedores = db['proveedores']
 
 
 
@@ -271,14 +272,31 @@ def actualizarInventario():
         accion = int(input('Que deseas hacer: '))
 
         if (accion == 1):
-
+            global proveedores
+            newProveedores = {}
             time.sleep(tiempo)
             os.system('cls' if os.name == 'nt' else 'clear')
             newItemName = input('Cual es el nombre del nuevo producto: ')
             newItemNum = int(input('Cantidad : '))
             newPrice = int(input('Precio unitario: '))
-            inventario.insert_one({'_id': newItemName, 'cantidad': newItemNum, 'precio' : newPrice})
-            log(f'{userID["_id"]} agrego {newItemNum} del nuevo producto {newItemName} con precio: {newPrice} el {datetime.datetime.now()}')
+            newProveedor = input('Agrega el nombre del proveedor: ')
+            while (newProveedor != ""):
+                busqueda = proveedores.find_one({'name': newProveedor})
+                if (busqueda != None):
+                    busqueda = busqueda['items']
+                    busqueda[newItemName] = None 
+                    proveedores.update_one({'name': newProveedor}, {'$set': {'items': busqueda}})
+                    newProveedores[newProveedor] = None
+                else:
+                    if (busqueda == None):
+                        print("Este proveedor no se encuentra dentro de la base de datos")
+                    else:
+                        print("si mas proveedores no distribuyen este producto pulsa Enter")
+                newProveedor = input('Agrega el nombre del proveedor: ')
+                
+                
+            inventario.insert_one({'_id': newItemName, 'cantidad': newItemNum, 'precio' : newPrice, 'proveedores': newProveedores})
+            log(f'{userID["_id"]} agrego {newItemNum} del nuevo producto {newItemName} con precio: {newPrice} y los proveedores: {newProveedores} el {datetime.datetime.now()}\n')
             print('!!Producto agregado exitosamente!!')
             
         elif (accion == 2):
@@ -372,39 +390,13 @@ def actualizarInventario():
 def verInventario():
     # Carga y muestra del inventario desde el archivo JSON
     global inventario
+    global userID
     accion = None
     filtro = None
     
     time.sleep(tiempo)
     os.system('cls' if os.name == 'nt' else 'clear')
-    print("1) ver todo el inventario\n2) ver productos con pocas unidades\n0) Salir")
-    filtro = int(input("Que quieres hacer: "))
-    while (filtro != 1 and filtro != 2 and filtro != 0):
-        print("opcion invalida")
-        filtro = int(input("Que quieres hacer: "))
-    
-    if (filtro == 1):
-        while (accion != 0):
-
-            time.sleep(tiempo)
-            os.system('cls' if os.name == 'nt' else 'clear')
-            time.sleep(tiempo)
-            os.system('cls' if os.name == 'nt' else 'clear')
-
-            if (inventario.count_documents({}) > 0):
-
-                print('| {:<20} | {:<10} | {:<10} |'.format('Producto', 'Cantidad', 'Precio'))
-                print('-' * (20 + 10 + 10 + 10))
-
-                for producto in inventario.find():
-                    print('| {:<20} | {:<10} | {:<10} |'.format(producto['_id'], producto['cantidad'], producto['precio']))
-
-            else:
-                print('El inventario esta vacio')
-            
-            
-            accion = int(input('Presiona 0 para salir\n'))
-    elif (filtro == 2):
+    if (userID['rol'] == 'proveedor'):
         while (accion != 0):
 
             time.sleep(tiempo)
@@ -418,7 +410,7 @@ def verInventario():
                 print('-' * (20 + 10 + 10 + 10))
 
                 for producto in inventario.find():
-                    if producto['cantidad'] <= 2:
+                    if ( userID['name'] in producto['proveedores']):
                         cont += 1
                         print('| {:<20} | {:<10} | {:<10} |'.format(producto['_id'], producto['cantidad'], producto['precio']))
                 if cont == 0:
@@ -430,7 +422,60 @@ def verInventario():
             
             accion = int(input('Presiona 0 para salir\n'))
     else:
-        accion = 0
+        print("1) ver todo el inventario\n2) ver productos con pocas unidades\n0) Salir")
+        filtro = int(input("Que quieres hacer: "))
+        while (filtro != 1 and filtro != 2 and filtro != 0):
+            print("opcion invalida")
+            filtro = int(input("Que quieres hacer: "))
+        
+        if (filtro == 1):
+            while (accion != 0):
+
+                time.sleep(tiempo)
+                os.system('cls' if os.name == 'nt' else 'clear')
+                time.sleep(tiempo)
+                os.system('cls' if os.name == 'nt' else 'clear')
+
+                if (inventario.count_documents({}) > 0):
+
+                    print('| {:<20} | {:<10} | {:<10} |'.format('Producto', 'Cantidad', 'Precio'))
+                    print('-' * (20 + 10 + 10 + 10))
+
+                    for producto in inventario.find():
+                        print('| {:<20} | {:<10} | {:<10} |'.format(producto['_id'], producto['cantidad'], producto['precio']))
+
+                else:
+                    print('El inventario esta vacio')
+                
+                
+                accion = int(input('Presiona 0 para salir\n'))
+        elif (filtro == 2):
+            while (accion != 0):
+
+                time.sleep(tiempo)
+                os.system('cls' if os.name == 'nt' else 'clear')
+                time.sleep(tiempo)
+                os.system('cls' if os.name == 'nt' else 'clear')
+
+                if (inventario.count_documents({}) > 0):
+                    cont = 0
+                    print('| {:<20} | {:<10} | {:<10} |'.format('Producto', 'Cantidad', 'Precio'))
+                    print('-' * (20 + 10 + 10 + 10))
+
+                    for producto in inventario.find():
+                        if producto['cantidad'] <= 2:
+                            cont += 1
+                            print('| {:<20} | {:<10} | {:<10} |'.format(producto['_id'], producto['cantidad'], producto['precio']))
+                    if cont == 0:
+                        print("!!No hay productos con pocas unidades!!")
+
+                else:
+                    print('El inventario esta vacio')
+                
+                
+                accion = int(input('Presiona 0 para salir\n'))
+        else:
+            accion = 0
     
     log(f'{userID["_id"]} vió el inventario el {datetime.datetime.now()}\n')
 
@@ -448,6 +493,7 @@ def crearUsuario():
             newIdUser = input('Nuevo Id de usuario: ')
             newUserName = input('Nuevo nombre de usuario: ')
             newUserPassword = input('Nueva password: ')
+            newContact = input("Numero de contacto:")
             newRol = input('Nuevo Rol: ')
 
             while (newRol not in roles or usuarios.find_one({'_id': newIdUser}) != None):
@@ -458,13 +504,17 @@ def crearUsuario():
                 newIdUser = input('Nuevo Id de usuario: ')
                 newUserName = input('Nuevo nombre de usuario: ')
                 newUserPassword = input('Nuevo password: ')
+                newContact = input("Numero de contacto:")
                 newRol = input('Nuevo Rol: ')
 
-            usuarios.insert_one({'_id': newIdUser,'name': newUserName, 'password' : newUserPassword, 'rol' : newRol, 'APUntos': 0, 'logged': False})
+            usuarios.insert_one({'_id': newIdUser,'name': newUserName, 'password' : newUserPassword, 'rol' : newRol, 'APUntos': 0, 'logged': False, 'contact': newContact})
 
             print('Usuario ', newRol, ' creado exitosamente!!! :)')
             log(f'{userID["_id"]} creo el usuario con id: {newIdUser}, con rol: {newRol} y contraseña: {newUserPassword} el {datetime.datetime.now()}\n')
-
+            if( newRol == "proveedor" ):
+                global proveedores
+                proveedores.insert_one({'_id': newIdUser,'name': newUserName, 'contact': newContact, 'items': {}})
+                
             salidaMenu = input('Presione Enter para seguircreando usuarios o escriba 0 y pulse Enter para salir\n')
     
 # Función para iniciar sesión
@@ -590,7 +640,7 @@ def menu():
 
         else:
             usuarios.update_one(userID, {'$set': {'logged': False}})
-            log(f'{userID["_id"]} vió las el reporte de ventas el {datetime.datetime.now()}\n')
+            log(f'{userID["_id"]} cerro sesion el {datetime.datetime.now()}\n')
             return 0
         
     elif (userID['rol'] == 'cliente'):
@@ -606,7 +656,7 @@ def menu():
 
         else:
             usuarios.update_one(userID, {'$set': {'logged': False}})
-            log(f'{userID["_id"]} vió las el reporte de ventas el {datetime.datetime.now()}\n')
+            log(f'{userID["_id"]} cerro sesion el {datetime.datetime.now()}\n')
             return 0
         
     elif (userID['rol'] == 'trabajador'):
@@ -625,7 +675,22 @@ def menu():
 
         else:
             usuarios.update_one(userID, {'$set': {'logged': False}})
-            log(f'{userID["_id"]} vió las el reporte de ventas el {datetime.datetime.now()}\n')
+            log(f'{userID["_id"]} cerro sesion el {datetime.datetime.now()}\n')
+            return 0
+    elif (userID['rol'] == 'proveedor'):
+        print(' 1. Ver inventario\n 2. Ver mis APUntos\n 0. Salir')
+        print('\n© 2024 PaticOS S.A. All rights reserved \n')
+        accion = int(input('Que deseas hacer: '))
+
+        if (accion == 1):
+            verInventario()
+            
+        elif(accion == 2):
+            verAPUntos()
+
+        else:
+            usuarios.update_one(userID, {'$set': {'logged': False}})
+            log(f'{userID["_id"]} cerro sesion el {datetime.datetime.now()}\n')
             return 0
 
 # Bucle principal del programa, maneja el login y la navegación por el menú principal

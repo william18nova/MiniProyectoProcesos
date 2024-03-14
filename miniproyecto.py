@@ -6,13 +6,12 @@ from pymongo.mongo_client import MongoClient
 
 uri = "mongodb+srv://Finchi:Juanjose.123@cluster0.pndlt5o.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0"
 FileLog = "log.txt"
-
-
-# Definición de roles disponibles y variables iniciales
 roles = {'cliente', 'trabajador', 'administrador', 'proveedor'}
 tiempo = 1
 userID = None
-# Nombres de archivos para almacenar datos de usuarios, inventario y ventas
+
+# Nombres de la base de datos y colecciones a utilizar
+
 client = MongoClient(uri) 
 
 db = client['Procesos']
@@ -23,7 +22,7 @@ usuarios = db['usuarios']
 proveedores = db['proveedores']
 
 
-
+# Función para ver los APUntos de un cliente
 def verAPUntos():
     global usuarios
     accion = None
@@ -38,17 +37,15 @@ def verAPUntos():
 def realizarVenta():
     global usuarios, ventas, inventario
     salidaMenu = None
-    carrito = {}
 
-    # Carga de usuarios y ventas desde archivos JSON
-
-    # Proceso de compra, incluyendo selección de cliente, productos, y finalización de compra
-    # La lógica involucra interacciones con el usuario a través de la consola
-    # Se manejan operaciones como agregar y eliminar productos del carrito, y calcular el total y cambio
+    # Proceso para realizar una venta, incluyendo la selección de productos y el método de pago
+    # Guardado de la venta en la colección correspondiente
 
     salidaMenu2 = None
 
     while (salidaMenu2 != 0):
+
+        carrito = {}
 
         salidaMenu = None
 
@@ -101,6 +98,8 @@ def realizarVenta():
                     while (cantidad > item2['cantidad']):
                         print('No hay suficientes unidades del producto')
                         cantidad = int(input('Cantidad: '))
+                    
+                    inventario.update_one({'_id': item}, {'$set': {'cantidad': item2['cantidad'] - cantidad}})
 
                     print(cantidad, ' x ', 'item Precio: ', item2['precio'])
                     carrito[item] = {'cantidad': cantidad, 'unidad': item2['precio'], 'total': item2['precio'] * cantidad}
@@ -131,96 +130,86 @@ def realizarVenta():
                             total += carrito[i]['total']
 
                         print('Total: ', total)
-                        if idComprador != "":
-                            print(" 1) Efectivo\n 2) APUntos")
+                        metodoPago = 1
+                        if (idComprador != ""):
+                            print(" 1. Efectivo\n 2. APUntos")
                             metodoPago = int(input("Metodo de pago: "))
-                        if metodoPago == 2:
+
+                        if (metodoPago == 2):
                             comprador = usuarios.find_one({'_id': idComprador})
+
                             if comprador['APUntos'] * 4 >= total:
                                 usuarios.update_one({'_id': idComprador}, {'$set': {'APUntos': comprador['APUntos'] - (total // 4)}})
                                 
-                                newVenta = {}
-                                newVenta['carrito'] = {}
-
-                                for i in carrito:
-                                    inventario.update_one({'_id': i}, {'$set': {'cantidad': inventario.find_one({'_id': i})['cantidad'] - carrito[i]['cantidad']}})
-                                    newVenta['carrito'][i] = {'cantidad': carrito[i]['cantidad'], 'precio': carrito[i]['unidad']}
-
-                                newVenta['total'] = total
-                                newVenta['cambio'] = 0
-
-                                if (fecha_entrada == ""):
-                                    newVenta['fecha'] = datetime.datetime.now().strftime("%d-%m-%Y")
-
-                                else:
-                                    newVenta['fecha'] = fecha_entrada
-
-                                newVenta['comprador'] = 'Anonimo' if idComprador == "" else {'id': idComprador, 'name': usuarios.find_one({'_id': idComprador})['name']}
-                                newVenta['vendedor'] = {'id': userID['_id'], 'name': userID['name']}
-                                carrito = {}
-                                ventas.insert_one(newVenta)
-                                print('!!Compra realizada exitosamente!!')
-                                salidaMenu2 = int(input('Presiona 0 para salir o cualquier otro numero para seguir registrando ventas\n'))
-                                log(f'{userID["_id"]} realizo una venta a {newVenta["comprador"]} con APUntos por un total de {total}$ el {datetime.datetime.now()}\n')
-                                salidaMenu = 0
+                                cambio = 'APUntos'
                                 
+                                log(f'{userID["_id"]} realizo una venta a {idComprador} con APUntos por un total de {total}$ el {datetime.datetime.now()}\n')
+                                salidaMenu = 0
                                 
                             else:
                                 print(comprador['name'], " No tiene los suficientes puntos")
                                 accion = int(input("1) pagar Efectivo\n2) cancelar compra\n"))
-                                if accion == 2:
+
+                                if (accion == 2):
                                     accion = -1
-                                elif accion == 1:
+
+                                elif (accion == 1):
                                     metodoPago = 1
                             
                         if metodoPago == 1:
                             pago = float(input('Con cuanto paga: '))
                             while (pago < total):
 
-                                print('valor menor al total')
+                                print('Valor menor al total')
                                 pago = float(input('Con cuanto paga: '))
 
                             cambio = pago - total
 
                             if (cambio > 0):
                                 print('El cambio es de: ', cambio)
-                                
-                            newVenta = {}
-                            newVenta['carrito'] = {}
 
-                            for i in carrito:
-                                inventario.update_one({'_id': i}, {'$set': {'cantidad': inventario.find_one({'_id': i})['cantidad'] - carrito[i]['cantidad']}})
-                                newVenta['carrito'][i] = {'cantidad': carrito[i]['cantidad'], 'precio': carrito[i]['unidad']}
-
-                            newVenta['total'] = total
-                            newVenta['cambio'] = cambio
-
-                            if (fecha_entrada == ""):
-                                newVenta['fecha'] = datetime.datetime.now().strftime("%d-%m-%Y")
-
-                            else:
-                                newVenta['fecha'] = fecha_entrada
-
-                            newVenta['comprador'] = 'Anonimo' if idComprador == "" else {'id': idComprador, 'name': usuarios.find_one({'_id': idComprador})['name']}
-                            newVenta['vendedor'] = {'id': userID['_id'], 'name': userID['name']}
-                            carrito = {}
-                                
                             if (idComprador != ""):
 
                                 puntos = total // 1000
                                 comprador = usuarios.find_one({'_id': idComprador})
                                 usuarios.update_one({'_id': idComprador}, {'$set': {'APUntos': comprador['APUntos'] + puntos}})
                                 print(comprador["name"], " ha sumado ", puntos, " APUntos")
+                                log(f'{userID["_id"]} realizo una venta a {idComprador} con efectivo por un total de {total}$ el {datetime.datetime.now()}\n')
+
+                            else:
+                                log(f'{userID["_id"]} realizo una venta a Anonimo con efectivo por un total de {total}$ el {datetime.datetime.now()}\n')
                                 
-                            ventas.insert_one(newVenta)
-                            print('!!Compra realizada exitosamente!!')
-                            log(f'{userID["_id"]} realizo una venta a {newVenta["comprador"]} con efectivo por un total de {total}$ el {datetime.datetime.now()}\n')
-                            salidaMenu2 = int(input('Presiona 0 para salir o cualquier otro numero para seguir registrando ventas\n'))
-                            salidaMenu = 0
+                        newVenta = {}
+
+                        if (fecha_entrada == ""):
+                            newVenta['fecha'] = datetime.datetime.now().strftime("%d-%m-%Y")
+
+                        else:
+                            newVenta['fecha'] = fecha_entrada
+                        
+                        newVenta['carrito'] = {}
+
+                        for i in carrito:
+                            newVenta['carrito'][i] = {'cantidad': carrito[i]['cantidad'], 'precio': carrito[i]['unidad']}
+                            
+                        newVenta['total'] = total
+                        newVenta['cambio'] = cambio
+
+                        newVenta['vendedor'] = {'id': userID['_id'], 'name': userID['name']}
+                        newVenta['comprador'] = 'Anonimo' if idComprador == "" else {'id': idComprador, 'name': usuarios.find_one({'_id': idComprador})['name']}
+                                
+                        ventas.insert_one(newVenta)
+                        print('!!Compra realizada exitosamente!!')
+                        salidaMenu2 = int(input('Presiona 0 para salir o cualquier otro numero para seguir registrando ventas\n'))
+                        salidaMenu = 0
 
                 if (accion == 0):
                     os.system('cls' if os.name == 'nt' else 'clear')
                     salidaMenu = 0
+
+                    for i in carrito:
+                        item = inventario.find_one({'_id': i})
+                        inventario.update_one({'_id': i}, {'$set': {'cantidad': item['cantidad'] + carrito[i]['cantidad']}})
                 
                 elif (accion == -1):
                     os.system('cls' if os.name == 'nt' else 'clear')
@@ -231,13 +220,10 @@ def realizarVenta():
                 print('El inventario esta vacio')
                 salidaMenu = 0
 
-        
-
 # Función para visualizar los usuarios registrados
 def verUsuarios():
     global usuarios
     accion = None
-    # Carga y muestra de usuarios desde el archivo JSON en consola
     while (accion != 0):
         time.sleep(tiempo)
         os.system('cls' if os.name == 'nt' else 'clear')
@@ -259,9 +245,9 @@ def verUsuarios():
 
 # Función para actualizar el inventario
 def actualizarInventario():
-    # Carga del inventario y permitir al usuario agregar, actualizar o eliminar productos
-    # Guardado de cambios en el archivo JSON correspondiente
     global inventario
+    # Proceso para actualizar el inventario, incluyendo la selección de productos y la modificación de sus atributos
+    # Guardado de los cambios en la colección correspondiente
     salidaMenu = None
     while (salidaMenu != "0"):
 
@@ -317,7 +303,7 @@ def actualizarInventario():
                         os.system('cls' if os.name == 'nt' else 'clear')
                         print('No existe el producto ', item)
                         item = input('Que producto quieres actualizar: ')
-                    print(' 1. Nombre\n 2. Cantidad\n 3. Precio\n 4. Todos\n 0. Salir')
+                    print(' 1. Nombre\n 2. Cantidad\n 3. Precio\n 4. Proveedor\n 0. Salir')
                     actualizarMenu = int(input('Que se va a actualizar: '))
                     oldItem = inventario.find_one({'_id': item})
 
@@ -343,15 +329,39 @@ def actualizarInventario():
                         log(f'{userID["_id"]} cambio el precio de {item} de {oldItem["precio"]} a {updatePrice} el {datetime.datetime.now()}\n')
 
                     elif (actualizarMenu == 4):
-                        print('Nombre actual: ', item)
-                        updateName = input("Nuevo nombre: ")
-                        print('Cantidad actual: ', oldItem['cantidad'])
-                        newItemNum = int(input('Cantidad : '))
-                        print('Precio actual: ', oldItem['precio'])
-                        newPrice = int(input('Precio unitario: '))
-                        inventario.delete_one({'_id': item})
-                        inventario.insert_one({'_id': updateName, 'cantidad': newItemNum, 'precio' : newPrice})
-                        log(f'{userID["_id"]} cambio el nombre de {item} a {updateName} la cantidad de {oldItem["cantidad"]} a {newItemNum} y el precio de {oldItem["precio"]} a {newPrice} el {datetime.datetime.now()}\n')
+                        listaProveedores = list(oldItem['proveedores'].keys())
+                        print('Proveedores actuales: ', *listaProveedores)
+                        print(' 1. Agregar proveedor\n 2. Eliminar proveedor\n 0. Salir')
+                        accionProveedor = int(input('Que deseas hacer: '))
+
+                        if(accionProveedor == 1):
+                            proveedor = input('Nombre del proveedor: ')
+                            busqueda = proveedores.find_one({'name': proveedor})
+                            if (busqueda != None):
+                                busqueda = busqueda['items']
+                                busqueda[item] = None 
+                                proveedores.update_one({'name': proveedor}, {'$set': {'items': busqueda}})
+                                oldItem['proveedores'][proveedor] = None
+                                inventario.update_one({'_id': item}, {'$set': {'proveedores': oldItem['proveedores']}})
+                                log(f'{userID["_id"]} agrego el proveedor {proveedor} al producto {item} el {datetime.datetime.now()}\n')
+                            else:
+                                if (busqueda == None):
+                                    print("Este proveedor no se encuentra dentro de la base de datos")
+                                else:
+                                    print("si mas proveedores no distribuyen este producto pulsa Enter")
+                        elif(accionProveedor == 2):
+                            proveedor = input('Nombre del proveedor: ')
+                            busqueda = proveedores.find_one({'name': proveedor})
+                            if (busqueda != None):
+                                proveedores.update_one({'name': proveedor}, {'$unset': {f'items.{item}': ''}})
+                                inventario.update_one({'_id': item}, {'$unset': {f'proveedores.{proveedor}': ''}})
+                                log(f'{userID["_id"]} elimino el proveedor {proveedor} del producto {item} el {datetime.datetime.now()}\n')
+                            else:
+                                if (busqueda == None):
+                                    print("Este proveedor no se encuentra dentro de la base de datos")
+                                else:
+                                    print("si mas proveedores no distribuyen este producto pulsa Enter")
+
                     else:
                         salidaMenu = "0"
 
@@ -387,8 +397,10 @@ def actualizarInventario():
             salidaMenu = input()  
         
 # Función para ver el inventario
-def verInventario():
-    # Carga y muestra del inventario desde el archivo JSON
+def verInventario(): 
+    # Proceso para visualizar el inventario, según el rol del usuario logueado
+    # Muestra los productos del proveedor o todos los productos
+    # Muestra los productos con pocas unidades
     global inventario
     global userID
     accion = None
@@ -462,11 +474,10 @@ def verInventario():
                     print('| {:<20} | {:<10} | {:<10} |'.format('Producto', 'Cantidad', 'Precio'))
                     print('-' * (20 + 10 + 10 + 10))
 
-                    for producto in inventario.find():
-                        if producto['cantidad'] <= 2:
-                            cont += 1
-                            print('| {:<20} | {:<10} | {:<10} |'.format(producto['_id'], producto['cantidad'], producto['precio']))
-                    if cont == 0:
+                    for producto in inventario.find({'cantidad': {'$lte': 5}}):
+                        print('| {:<20} | {:<10} | {:<10} |'.format(producto['_id'], producto['cantidad'], producto['precio']))
+                        cont += 1
+                    if (cont == 0):
                         print("!!No hay productos con pocas unidades!!")
 
                 else:
@@ -481,8 +492,9 @@ def verInventario():
 
 # Función para crear un nuevo usuario
 def crearUsuario():
-    # Proceso para agregar un nuevo usuario, incluyendo validaciones de datos
-    # Guardado de datos actualizados en archivo JSON
+    # Proceso para crear un nuevo usuario
+    # Validación de datos y guardado del usuario en la colección correspondiente
+
     global usuarios
     salidaMenu = None
     while (salidaMenu != "0"):
@@ -520,8 +532,7 @@ def crearUsuario():
 # Función para iniciar sesión
 def login():
     global usuarios, userID
-    # Proceso de inicio de sesión, con validación de credenciales
-    # Carga de usuarios desde el archivo JSON si existe, o creación de un usuario administrador predeterminado
+    # Proceso para iniciar sesión, incluyendo la validación de credenciales y el cambio de estado del usuario a logueado
 
     os.system('cls' if os.name == 'nt' else 'clear')
 
@@ -548,13 +559,16 @@ def login():
     userID = User
     print(f'¡Bienvenido {User["name"]}!')
     log(f'{User["_id"]} inicio sesion el {datetime.datetime.now()}\n')
-    
+
+# Función para registrar las acciones de los usuarios 
 def log(txt):
     with open(FileLog, "a") as archivo:
         archivo.write(txt)
 
+# Función para visualizar las compras diarias
 def comprasDiarias():
     global usuarios, userID
+    # Proceso para visualizar las compras diarias, incluyendo la selección de la fecha
 
     os.system('cls' if os.name == 'nt' else 'clear')
     total = 0
@@ -600,15 +614,13 @@ def comprasDiarias():
 
     print('Total del día: ', total)
     print('Presiona 0 para salir')
-    log(f'{userID["_id"]} vió las el reporte de ventas el {datetime.datetime.now()}\n')
+    log(f'{userID["_id"]} vio las el reporte de ventas el {datetime.datetime.now()}\n')
     accion = input()
     time.sleep(tiempo)
     os.system('cls' if os.name == 'nt' else 'clear')
 
 # Menú principal del sistema, muestra opciones según el rol del usuario logueado
 def menu():
-    # Presentación de opciones y navegación por el sistema basado en el rol del usuario
-    # Llamadas a las funciones correspondientes según la selección del usuario
     print('    ___    ____  __  __')
     print('   /   |  / __ \/ / / /')
     print('  / /| | / /_/ / / / / ')
@@ -693,15 +705,22 @@ def menu():
             log(f'{userID["_id"]} cerro sesion el {datetime.datetime.now()}\n')
             return 0
 
-# Bucle principal del programa, maneja el login y la navegación por el menú principal
-while (True):
-    login()
-    salidaMenu = None
-
-    while (salidaMenu != 0):
-        time.sleep(tiempo)
-        os.system('cls' if os.name == 'nt' else 'clear')
-        salidaMenu = menu()
+# Bucle principal del programa, maneja el login y hace llamado al menú
+try:
+    while (True):
+        login()
+        salidaMenu = None
+        try:
+            while (salidaMenu != 0):
+                time.sleep(tiempo)
+                os.system('cls' if os.name == 'nt' else 'clear')
+                salidaMenu = menu()
+            if (userID != None):
+                usuarios.update_one({'_id': userID['_id']}, {'$set': {'logged': False}})
+        except:
+            usuarios.update_one({'_id': userID['_id']}, {'$set': {'logged': False}})
+            break
+except KeyboardInterrupt:
     if (userID != None):
         usuarios.update_one({'_id': userID['_id']}, {'$set': {'logged': False}})
 

@@ -386,6 +386,8 @@ def actualizarInventario():
 
             if (delItem != None and item != "0"):
                 inventario.delete_one({'_id': item})
+                for proveedor in delItem['proveedores']:
+                    proveedores.update_one({'name': proveedor}, {'$unset': {f'items.{item}': ''}})
                 log(f'{userID["_id"]} elimino el producto {item} el {datetime.datetime.now()}\n')
                 print('!!Producto eliminado exitosamente!!')
 
@@ -527,7 +529,7 @@ def crearUsuario():
                 global proveedores
                 proveedores.insert_one({'_id': newIdUser,'name': newUserName, 'contact': newContact, 'items': {}})
                 
-            salidaMenu = input('Presione Enter para seguircreando usuarios o escriba 0 y pulse Enter para salir\n')
+            salidaMenu = input('Presione Enter para seguir creando usuarios o escriba 0 y pulse Enter para salir\n')
     
 # Función para iniciar sesión
 def login():
